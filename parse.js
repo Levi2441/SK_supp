@@ -5,9 +5,10 @@
 const cheerio = require("cheerio");
 const axios = require("axios");
 
-const { getUrl } = require("./url.js");
+const { getUrl, findCategory } = require("./url.js");
 
 const base_url = "https://www.ewg.org/skindeep/search/?search=";
+const categories = ["Cleanser", "Toner", "Serum"];
 
 //say product is the name of product that user suggested
 const product = "Snail Mucin";
@@ -27,8 +28,13 @@ async function get_product_url(combined_url) {
     //get the element that matches the query the most -- no matches then err
     let best_element = text.eq(0); //gets the first object
 
-    //we want the a element
+    //we want the element link
     let link = best_element.find("a");
+    let name = best_element.find("div.product-name").text();
+    let company = best_element.find("div.product-company").text();
+
+    console.log(name);
+    console.log(company);
 
     //parse this text to see if there are results that match our desired product
 
@@ -44,33 +50,49 @@ async function get_product_url(combined_url) {
   }
 }
 
-function get_product_info(product_url) {
-  axios
-    .get(product_url)
-    .then((res) => {
-      const new_doc = cheerio.load(res.data);
+async function get_product_info(product_url) {
+  try {
+    const prod_res = await axios.get(product_url);
+    const new_doc = cheerio.load(prod_res.data);
 
-      //finds the img element with classname squircle and returns value of "alt" attribute
-      let overall_score = new_doc("img.squircle").attr("alt");
+    //finds the category
+    let helper_category = new_doc("div.product-lower").children();
 
-      //we need to parse the string overall_score
+    //gives you a link with the category in it -- check which one is in -> default to cleanser
+    let category_link = helper_category.eq(2).attr("href");
 
-      //now we get information from the ingredients
-      let ingredients_table = new_doc("tbody").children("tr");
+    //
+    let category = findCategory(category_link);
+    console.log(category);
 
-      //going to assume that ingredients table contains all the tr elements
+    //finds the img element with classname squircle and returns value of "alt" attribute
+    let overall_score = new_doc("img.squircle").attr("alt");
 
-      let first_ingredient = ingredients_table.eq(0);
+    //we need to parse the string overall_score
+
+    //now we get information from the ingredients
+    let ingredients_table = new_doc("tbody").children("tr");
+
+    //going to assume that ingredients table contains all the tr elements
+    console.log(overall_score.trim());
+
+    index = 0;
+    while (index < ingredients_table.length) {
+      let first_ingredient = ingredients_table.eq(index);
       let first_ing_name = first_ingredient.find("div.td-ingredient-interior");
       let first_ing_score = first_ingredient.find("img").attr("alt");
 
-      console.log(overall_score);
-      console.log(first_ing_name.text());
+      if (first_ing_score === undefined) {
+        break;
+      }
+      console.log(first_ing_name.text().trim());
       console.log(first_ing_score);
 
-      //console.log(overall_score);
-    })
-    .catch((err) => console.log(err));
+      index += 2;
+    }
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 async function execute() {

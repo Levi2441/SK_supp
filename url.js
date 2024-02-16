@@ -4,6 +4,7 @@
 
 //url space_encoding
 const space_encoding = "%20";
+const categories = ["Cleanser", "Toner", "Serum"];
 
 /**
  * Assumes that the product_name is valid (only uppercase, lowercase)
@@ -26,6 +27,20 @@ function getUrl(product_name) {
   return res;
 }
 
+function findCategoryFromUrl(url) {
+  let category = "";
+  for (let i = 0; i < categories.length; i++) {
+    if (url.includes(categories[i].toLowerCase())) {
+      category = categories[i];
+    }
+  }
+  if (category == "") {
+    category = "Not Found";
+  }
+  return category;
+}
+
 module.exports = {
   getUrl: getUrl,
+  findCategory: findCategoryFromUrl,
 };
