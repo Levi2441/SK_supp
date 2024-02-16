@@ -5,13 +5,13 @@
 const cheerio = require("cheerio");
 const axios = require("axios");
 
-const { getUrl, findCategory } = require("./url.js");
+const { getUrl, findCategory, getSimilarity } = require("./url.js");
 
 const base_url = "https://www.ewg.org/skindeep/search/?search=";
 const categories = ["Cleanser", "Toner", "Serum"];
 
 //say product is the name of product that user suggested
-const product = "Hydrating Toner";
+const product = "CeraVe Hydrating Cleanser";
 
 //we would have to check create the url to query with the product_name
 //combining product name and base_url to get GET query
@@ -25,13 +25,48 @@ async function get_product_url(combined_url) {
     //traverse down the DOM to get the product listings of the result of our query
     let text = doc("section.product-listings").children("div");
 
+    //check if there are no product listings
+    if (text.length < 1) {
+      throw new Error("This is an example of throwing an exception.");
+    }
+
     //get the element that matches the query the most -- no matches then err
-    let best_element = text.eq(0); //gets the first object
+    let index = 0;
+    let max_index = 0;
+    let max_similarity = 0;
+    let best_element = text.eq(0);
+
+    while (index < text.length) {
+      let curr_element = text.eq(index);
+      let curr_element_name = curr_element
+        .find("div.product-name")
+        .text()
+        .trim();
+      let curr_similarity = getSimilarity(product.trim(), curr_element_name);
+
+      if (curr_similarity > max_similarity) {
+        max_index = index;
+        max_similarity = curr_similarity;
+        best_element = curr_element;
+      }
+      index += 1;
+    }
+
+    //console.log(max_similarity);
+    //check for the case where we found no similarity
+    if (max_similarity == 0) {
+      //console.log(text.length);
+      throw new Error("This is an example of throwing an exception.");
+    }
+
+    //
+
+    //let best_element = text.eq(0); //gets the first object
 
     //we want the element link
     let link = best_element.find("a");
-    let name = best_element.find("div.product-name").text();
-    let company = best_element.find("div.product-company").text();
+    // let name = best_element.find("div.product-name").text();
+    // let company = best_element.find("div.product-company").text();
 
     // console.log(name);
     // console.log(company);
@@ -46,7 +81,7 @@ async function get_product_url(combined_url) {
     //return the link for the product
     return link.attr("href");
   } catch (error) {
-    console.log(error);
+    console.log("dang");
   }
 }
 
@@ -59,8 +94,9 @@ async function get_product_info(product_url) {
     let name_of_product = new_doc("div.product-score-name-wrapper")
       .children()
       .eq(1)
-      .text();
-    console.log(name_of_product);
+      .text()
+      .trim();
+    // console.log(name_of_product);
 
     //finds the brand of the product
     let brand_of_product = new_doc("div.product-lower")
@@ -68,7 +104,7 @@ async function get_product_info(product_url) {
       .eq(5)
       .text()
       .trim();
-    console.log(brand_of_product);
+    // console.log(brand_of_product);
 
     //next few lines finds the category of the product
     let helper_category = new_doc("div.product-lower").children();
@@ -77,11 +113,16 @@ async function get_product_info(product_url) {
     let category_link = helper_category.eq(2).attr("href");
 
     //
-    let category = findCategory(category_link);
-    console.log(category);
+    let category_of_product = findCategory(category_link);
+    //console.log(category);
 
     //finds the img element with classname squircle and returns value of "alt" attribute
-    let overall_score = new_doc("img.squircle").attr("alt");
+    let overall_score = new_doc("img.squircle")
+      .attr("alt")
+      .toString()
+      .slice(14);
+    //console.log(overall_score);
+    let overall_score_int = parseInt(overall_score, 10);
 
     //we need to parse the string overall_score
 
@@ -89,7 +130,9 @@ async function get_product_info(product_url) {
     let ingredients_table = new_doc("tbody").children("tr");
 
     //going to assume that ingredients table contains all the tr elements
-    console.log(overall_score.trim());
+    //console.log(overall_score.trim());
+
+    let ingredients_of_product = [];
 
     index = 0;
     while (index < ingredients_table.length) {
@@ -101,21 +144,33 @@ async function get_product_info(product_url) {
         //break when you start getting undefined values
         break;
       }
-      console.log(first_ing_name.text().trim());
-      console.log(first_ing_score);
+      ingredients_of_product.push(first_ing_name.text().trim());
+      //   console.log(first_ing_name.text().trim());
+      //   console.log(first_ing_score);
 
       index += 2;
     }
+    // console.log(ingredients_of_product);
+    return {
+      product_name: name_of_product,
+      product_brand: brand_of_product,
+      product_category: category_of_product,
+      overall_score: overall_score_int,
+      product_ingredients: ingredients_of_product,
+    };
   } catch (error) {
-    console.log(error);
+    console.log("dang");
   }
 }
 
 async function execute() {
+  //either throw an error or return a product url
   let product_page_url = await get_product_url(query_url);
 
   //console.log(product_page_url);
-  get_product_info(product_page_url);
+  //either throw an error or return a product object
+  let res = await get_product_info(product_page_url);
+  console.log(res);
 }
 
 execute();
