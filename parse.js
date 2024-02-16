@@ -11,7 +11,7 @@ const base_url = "https://www.ewg.org/skindeep/search/?search=";
 const categories = ["Cleanser", "Toner", "Serum"];
 
 //say product is the name of product that user suggested
-const product = "Snail Mucin";
+const product = "Hydrating Toner";
 
 //we would have to check create the url to query with the product_name
 //combining product name and base_url to get GET query
@@ -33,8 +33,8 @@ async function get_product_url(combined_url) {
     let name = best_element.find("div.product-name").text();
     let company = best_element.find("div.product-company").text();
 
-    console.log(name);
-    console.log(company);
+    // console.log(name);
+    // console.log(company);
 
     //parse this text to see if there are results that match our desired product
 
@@ -55,7 +55,22 @@ async function get_product_info(product_url) {
     const prod_res = await axios.get(product_url);
     const new_doc = cheerio.load(prod_res.data);
 
-    //finds the category
+    //finds the name of the product
+    let name_of_product = new_doc("div.product-score-name-wrapper")
+      .children()
+      .eq(1)
+      .text();
+    console.log(name_of_product);
+
+    //finds the brand of the product
+    let brand_of_product = new_doc("div.product-lower")
+      .children()
+      .eq(5)
+      .text()
+      .trim();
+    console.log(brand_of_product);
+
+    //next few lines finds the category of the product
     let helper_category = new_doc("div.product-lower").children();
 
     //gives you a link with the category in it -- check which one is in -> default to cleanser
@@ -83,6 +98,7 @@ async function get_product_info(product_url) {
       let first_ing_score = first_ingredient.find("img").attr("alt");
 
       if (first_ing_score === undefined) {
+        //break when you start getting undefined values
         break;
       }
       console.log(first_ing_name.text().trim());
