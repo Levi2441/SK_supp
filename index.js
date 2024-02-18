@@ -12,3 +12,54 @@
  * more information to update the original database -- so we need to access the other
  * server API to add a product to the database
  */
+const parse = require("./parse.js");
+const { getUrl, findCategory, getSimilarity } = require("./url.js");
+const cors = require("cors"); //only necessary until backend and frontend run on the same port
+
+const express = require("express");
+const app = express();
+
+app.use(cors()); //to allow response from different origin
+
+app.use(express.json()); //allow express methods for parsing json
+//say product is the name of product that user suggested
+
+//we would have to check create the url to query with the product_name
+//combining product name and base_url to get GET query
+
+async function receive(product) {
+  //   let product = "Retinol Serum";
+  let base_url = "https://www.ewg.org/skindeep/search/?search=";
+
+  const query_url = base_url + getUrl(product);
+
+  const res = await parse.returnInformation(product, query_url);
+  return res;
+}
+
+app.get("/", (request, response) => {
+  response.send("Send a GET request with name of product");
+});
+
+app.get("/product", (request, response) => {
+  const data = request.body;
+  const url = data.url;
+  receive(url)
+    .then((res) => {
+      if (res) {
+        response.json(res);
+      } else {
+        response.status(200).json({
+          name: "Error",
+        });
+      }
+    })
+    .catch((err) => console.log(err));
+});
+
+const PORT = 3002;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
+
+//receive();
