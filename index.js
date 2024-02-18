@@ -41,16 +41,18 @@ app.get("/", (request, response) => {
   response.send("Send a GET request with name of product");
 });
 
-app.get("/product", (request, response) => {
+app.post("/product", (request, response) => {
   const data = request.body;
+  console.log(data);
   const url = data.url;
+  console.log(url);
   receive(url)
     .then((res) => {
       if (res) {
         response.json(res);
       } else {
         response.status(200).json({
-          name: "Error",
+          name: "No Products Found",
         });
       }
     })
